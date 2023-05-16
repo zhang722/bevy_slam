@@ -11,7 +11,7 @@ struct Server {
 
 #[derive(Resource, Deref)]
 struct StreamReceiver(Receiver<String>);
-struct StreamEvent(String);
+pub struct StreamEvent(pub String);
 
 #[derive(Component)]
 struct Body;
@@ -103,7 +103,7 @@ fn response_event(
     time: Res<Time>
 ) {
     for event in events.iter() {
-        println!("Received message from event: {}", event.0);
+        // println!("Received message from event: {}", event.0);
         for mut t in &mut query {
             t.rotate_y(6.28 * time.delta_seconds());
         }

@@ -2,18 +2,78 @@ use std::error::Error;
 
 use bevy::prelude::*;
 
+use super::server;
+
+#[derive(Debug)]
 pub struct BodyTransformMessage {
     pub id: usize,
     pub transform: Transform,
 }
 
+#[derive(Debug)]
 pub struct PointMessage {
     pub id: usize,
     pub position: Vec3,
 }
 
+pub struct BodyTransformEvent(pub BodyTransformMessage);
+pub struct PointEvent(pub PointMessage);
+
+pub struct MessagePlugin;
+impl Plugin for MessagePlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .add_event::<BodyTransformEvent>()
+            .add_event::<PointEvent>()
+            .add_system(response_stream_event)
+            .add_system(receive_body_event)
+            .add_system(receive_point_event);
+    }
+}
+
+fn response_stream_event(
+    mut events: EventReader<server::StreamEvent>,
+    mut body_transform_event: EventWriter<BodyTransformEvent>,
+    mut point_event: EventWriter<PointEvent>
+) {
+    for event in events.iter() {
+        let msg = &event.0;
+        for str in msg.split('{') {
+            if !str.ends_with('}') {
+                continue;
+            }
+            let str = str.trim_end_matches('}');
+
+            if str.starts_with("body") {
+                let body = parse_transform_message(str).unwrap();
+                body_transform_event.send(BodyTransformEvent(body));
+            } else if str.starts_with("point") {
+                let point = parse_point_message(str).unwrap();
+                point_event.send(PointEvent(point));
+            }
+        }
+    }
+}
+
+fn receive_body_event(
+    mut body_transform_event: EventReader<BodyTransformEvent>,
+) {
+    for event in body_transform_event.iter() {
+        println!("body event: {:?}", event.0);
+    }
+}
+
+fn receive_point_event(
+    mut point_event: EventReader<PointEvent>,
+) {
+    for event in point_event.iter() {
+        println!("point event: {:?}", event.0);
+    }
+}
+
 pub fn parse_transform_message(msg: &str) -> Result<BodyTransformMessage, Box<dyn Error>> {
     let mut parts = msg.split_whitespace();
+    parts.next();
     let id = parts.next().unwrap().parse::<usize>()?;
     let qx = parts.next().unwrap().parse::<f32>()?;
     let qy = parts.next().unwrap().parse::<f32>()?;
@@ -33,6 +93,7 @@ pub fn parse_transform_message(msg: &str) -> Result<BodyTransformMessage, Box<dy
 
 pub fn parse_point_message(msg: &str) -> Result<PointMessage, Box<dyn Error>> {
     let mut parts = msg.split_whitespace();
+    parts.next();
     let id = parts.next().unwrap().parse::<usize>()?;
     let x = parts.next().unwrap().parse::<f32>()?;
     let y = parts.next().unwrap().parse::<f32>()?;

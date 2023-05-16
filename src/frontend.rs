@@ -7,9 +7,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_plugins(DefaultPlugins)
         // pan orbit camera
         .add_plugin(visualizer::pan_orbit_camera::PanOrbitCameraPlugin)
-
         // server
         .add_plugin(visualizer::server::ServerPlugin)
+        // message
+        .add_plugin(visualizer::message::MessagePlugin)
         .run();
 
     Ok(())
