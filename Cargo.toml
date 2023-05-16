@@ -7,7 +7,9 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.10.1"
+bevy_obj = "0.10.1"
 crossbeam-channel = "0.5.8"
+bevy_prototype_debug_lines = { version = "0.10", features = ["3d"] }
 
 [[bin]]
 name = "frontend" 

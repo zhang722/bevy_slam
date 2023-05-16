@@ -1,6 +1,6 @@
-use std::error::Error;
+use std::{error::Error};
 
-use bevy::prelude::*;
+use bevy::{prelude::*};
 
 use super::server;
 
@@ -25,9 +25,7 @@ impl Plugin for MessagePlugin {
         app
             .add_event::<BodyTransformEvent>()
             .add_event::<PointEvent>()
-            .add_system(response_stream_event)
-            .add_system(receive_body_event)
-            .add_system(receive_point_event);
+            .add_system(response_stream_event);
     }
 }
 
@@ -55,21 +53,7 @@ fn response_stream_event(
     }
 }
 
-fn receive_body_event(
-    mut body_transform_event: EventReader<BodyTransformEvent>,
-) {
-    for event in body_transform_event.iter() {
-        println!("body event: {:?}", event.0);
-    }
-}
 
-fn receive_point_event(
-    mut point_event: EventReader<PointEvent>,
-) {
-    for event in point_event.iter() {
-        println!("point event: {:?}", event.0);
-    }
-}
 
 pub fn parse_transform_message(msg: &str) -> Result<BodyTransformMessage, Box<dyn Error>> {
     let mut parts = msg.split_whitespace();

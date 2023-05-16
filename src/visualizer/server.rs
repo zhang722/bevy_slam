@@ -1,4 +1,4 @@
-use std::io::{self, Read};
+use std::io::{Read};
 use std::net::{TcpListener, TcpStream};
 
 use bevy::prelude::*;
@@ -13,9 +13,6 @@ struct Server {
 struct StreamReceiver(Receiver<String>);
 pub struct StreamEvent(pub String);
 
-#[derive(Component)]
-struct Body;
-
 pub struct ServerPlugin;
 
 impl Plugin for ServerPlugin {
@@ -28,8 +25,7 @@ impl Plugin for ServerPlugin {
         app.add_event::<StreamEvent>()
             .insert_resource(Server { listener })
             .add_startup_system(server_system)
-            .add_system(read_stream)
-            .add_system(response_event);
+            .add_system(read_stream);
     }
 }
 
@@ -57,8 +53,6 @@ fn handle_client(stream: &mut TcpStream, tx: &Sender<String>)  {
 fn server_system(
     mut commands: Commands, 
     server: Res<Server>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let (tx, rx) = bounded::<String>(10);
     let incoming = server.listener.try_clone().expect("");
@@ -76,14 +70,6 @@ fn server_system(
         }
     });
     commands.insert_resource(StreamReceiver(rx));
-
-    // Spawn a cube
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-        transform: Transform::from_xyz(0.0, 0.5, 0.0),
-        ..default()
-    }).insert(Body);
 }
 
 
@@ -94,18 +80,5 @@ fn read_stream(
 ) {
     for from_stream in receiver.try_iter() {
         events.send(StreamEvent(from_stream));
-    }
-}
-
-fn response_event(
-    mut events: EventReader<StreamEvent>,
-    mut query: Query<&mut Transform, With<Body>>,
-    time: Res<Time>
-) {
-    for event in events.iter() {
-        // println!("Received message from event: {}", event.0);
-        for mut t in &mut query {
-            t.rotate_y(6.28 * time.delta_seconds());
-        }
     }
 }
