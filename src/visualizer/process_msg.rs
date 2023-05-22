@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap};
 
 use bevy::{prelude::*};
 use bevy_obj::*;
@@ -109,7 +109,6 @@ fn show_frame(
 
 
 fn receive_body_event(
-    time: Res<Time>,
     mut body_transform_event: EventReader<message::BodyTransformEvent>,
     mut query: Query<&mut Transform, With<Body>>,
 ) {
