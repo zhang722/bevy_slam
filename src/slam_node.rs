@@ -1,3 +1,5 @@
+use nalgebra as na;
+
 use rosrust_msg::*;
 mod slam;
 
@@ -6,7 +8,8 @@ fn main() {
     rosrust::init("talker");
 
     // Create publisher
-    let chatter_pub: rosrust::Publisher<geometry_msgs::PoseStamped> = rosrust::publish("chatter", 100).unwrap();
+    let path_pub: rosrust::Publisher<nav_msgs::Path> = rosrust::publish("chatter", 100).unwrap();
+    let pose_pub: rosrust::Publisher<geometry_msgs::PoseStamped> = rosrust::publish("pose", 100).unwrap();
 
     let mut count = 0;
 
@@ -17,42 +20,52 @@ fn main() {
     let camera = slam::camera::CameraIntrinsics::new_euroc();
     let mut tracker = slam::process_image::Tracker::new(camera).unwrap();
     let mut data_iter = data_set.into_iter();
+    let mut pose = na::Isometry3::<f64>::identity();
+    let mut path_msg = nav_msgs::Path::default();
 
     // Breaks when a shutdown signal is sent
     while rosrust::is_ok() {
         // Create string message
-        let pose = match data_iter.next() {
+        pose = match data_iter.next() {
             Some(data) => {
-                tracker.track(data).unwrap()
+                tracker.track(data).unwrap_or(pose)
             },
             None => {
                 break;
             },
         };
 
-        let msg = geometry_msgs::PoseStamped {
-            header : std_msgs::Header {
-                seq: count,
-                stamp: rosrust::now(),
-                frame_id: "odom".to_string(),
+        let pose = geometry_msgs::Pose{
+            position: geometry_msgs::Point {
+                x: pose.translation.x / 10.0,
+                y: pose.translation.y / 10.0,
+                z: pose.translation.z / 10.0,
             },
-            pose : geometry_msgs::Pose{
-                position: geometry_msgs::Point {
-                    x: pose.translation.x,
-                    y: pose.translation.y,
-                    z: pose.translation.z,
-                },
-                orientation: geometry_msgs::Quaternion {
-                    x: pose.rotation.i,
-                    y: pose.rotation.j,
-                    z: pose.rotation.k,
-                    w: pose.rotation.w,
-                },
-            }
+            orientation: geometry_msgs::Quaternion {
+                x: pose.rotation.i,
+                y: pose.rotation.j,
+                z: pose.rotation.k,
+                w: pose.rotation.w,
+            },
         };
 
+        let header = std_msgs::Header {
+            seq: count,
+            stamp: rosrust::now(),
+            frame_id: "odom".to_string(),
+        };
+
+        let msg = geometry_msgs::PoseStamped {
+            header : header.clone(),
+            pose: pose.clone(),
+        };
+        pose_pub.send(msg.clone()).unwrap();
+
+        path_msg.header = header.clone();
+        path_msg.poses.push(msg);
+
         // Send string message to topic via publisher
-        chatter_pub.send(msg).unwrap();
+        path_pub.send(path_msg.clone()).unwrap();
 
         // Sleep to maintain 10Hz rate
         rate.sleep();

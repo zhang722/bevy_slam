@@ -54,6 +54,7 @@ impl Frame {
 }
 
 pub struct Tracker {
+    pub pose: na::Isometry3<f64>,
     pub init_flag: bool,
     pub last_frame: Frame,
     pub curr_frame: Frame,
@@ -88,6 +89,7 @@ impl Tracker {
         };
 
         Ok(Self {
+            pose: na::Isometry3::identity(),
             init_flag: false,
             last_frame: Frame::default(),
             curr_frame: Frame::default(),
@@ -136,7 +138,7 @@ impl Tracker {
             points2.push(curr_pt);
         }
         let mut mask: core::Vector<u8> = core::Vector::default();
-        let matrix = calib3d::find_fundamental_mat(
+        let _matrix = calib3d::find_fundamental_mat(
             &points1, 
             &points2, 
             calib3d::FM_RANSAC, 1.0, 0.99, &mut mask)?;
@@ -166,12 +168,16 @@ impl Tracker {
             &mut mask)?;
 
         // draw matches in one img
+        let mut inliers_essential1 = core::Vector::<core::Point2f>::default();
+        let mut inliers_essential2 = core::Vector::<core::Point2f>::default();
         for (idx, status) in mask.iter().enumerate() {
-            if mask.get(idx)? == 0 {
+            if status == 0 {
                 continue;
             }
             let last_pt = inliers1.get(idx)?;
             let curr_pt = inliers2.get(idx)?;
+            inliers_essential1.push(last_pt);
+            inliers_essential2.push(curr_pt);
             let last_pt = core::Point2i::new(last_pt.x as i32, last_pt.y as i32);
             let curr_pt = core::Point2i::new(curr_pt.x as i32, curr_pt.y as i32);
             imgproc::line(
@@ -189,8 +195,8 @@ impl Tracker {
 
         let pose = pose_from_essential_mat(
             &essential_mat, 
-            &inliers1, 
-            &inliers2, 
+            &inliers_essential1, 
+            &inliers_essential2, 
             &self.camera)?;
 
         Ok(pose)
@@ -264,7 +270,9 @@ impl Tracker {
 
         self.last_frame = std::mem::replace(&mut self.curr_frame, Frame::default());
 
-        Ok(pose)
+        self.pose *= pose;
+
+        Ok(self.pose)
     }
 }
 
@@ -287,6 +295,15 @@ pub fn pose_from_essential_mat(
         intrinsics.fx, 
         core::Point2d::new(intrinsics.cx, intrinsics.cy), 
         &mut mask).unwrap();
+    println!("len: {}", points1.len());
+    println!("inliers: {}", n);
+
+    if (n as f64) / (points1.len() as f64) < 0.5 {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Not enough inliers",
+        )));
+    }
     
     // cv::Mat to na::Isometry3<f64>
     let r = na::Rotation3::<f64>::from_matrix_unchecked(na::Matrix3::new(
@@ -298,7 +315,7 @@ pub fn pose_from_essential_mat(
         na::Translation3::new(*t.at_2d(0, 0)?, *t.at_2d(1, 0)?, *t.at_2d(2, 0)?),
         na::UnitQuaternion::from_rotation_matrix(&r), 
     );
-    println!("pose: {}", pose);
+    println!("step_pose: {}", pose.to_matrix());
 
     Ok(pose)
 }
@@ -312,8 +329,15 @@ mod test {
         let data_set = super::super::load_data::load_euroc_data(path)?;
         let camera = super::super::camera::CameraIntrinsics::new_euroc();
         let mut tracker = super::Tracker::new(camera).unwrap();
+        let mut pose = nalgebra::Isometry3::<f64>::identity();
         for data in data_set {
-            tracker.track(data).unwrap();
+            pose = match tracker.track(data) {
+                Ok(pose) => pose,
+                Err(e) => {
+                    pose
+                },
+            };
+            println!("pose: {}", pose.to_matrix());
         }
 
         Err("end".into())
@@ -418,5 +442,29 @@ mod test {
         // draw
         opencv::highgui::imshow("matches", &out_img_color).unwrap();
         opencv::highgui::wait_key(0).unwrap();
+    }
+
+    #[test]
+    fn test_bug_track() -> Result<(), Box<dyn std::error::Error>> {
+        let path1 = "/home/zhang/Downloads/MH_01_easy/mav0/cam0/data/1403636585013555456.png";
+        let path2 = "/home/zhang/Downloads/MH_01_easy/mav0/cam0/data/1403636585063555584.png";
+        let data1 = super::super::load_data::EurocData {
+            timestamp: std::time::Duration::default(),
+            img_name: path1.into(),
+        }; 
+        let data2 = super::super::load_data::EurocData {
+            timestamp: std::time::Duration::default(),
+            img_name: path2.into(),
+        }; 
+
+        let data_set = vec![data1, data2];
+        let camera = super::super::camera::CameraIntrinsics::new_euroc();
+        let mut tracker = super::Tracker::new(camera).unwrap();
+        for data in data_set {
+            let pose = tracker.track(data).unwrap();
+            println!("pose: {}", pose.to_matrix());
+        }
+
+        Err("end".into())
     }
 }
