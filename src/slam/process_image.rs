@@ -11,6 +11,7 @@ use nalgebra as na;
 
 use super::load_data;
 use super::camera;
+use super::recover_pose;
 
 const GX: usize = 15;
 const GY: usize = 10;
@@ -157,6 +158,12 @@ impl Tracker {
         }
 
         let mut mask: core::Vector<u8> = core::Vector::default();
+        // in opencv, find_essential_mat returns Essential Matrix E, 
+        // which subjects to x2^T * E * x1 = 0
+        // It is important!
+        // So E = R_{21} * [t_{21}]_x, not R_{12} * [t_{12}]_x !!!
+        // where R_{21} is the rotation matrix from frame 1 to frame 2
+        // and [t_{21}]_x is the skew-symmetric matrix of translation vector t_{21}
         let essential_mat = calib3d::find_essential_mat(
             &inliers1, 
             &inliers2, 
@@ -193,7 +200,8 @@ impl Tracker {
         opencv::highgui::imshow("matches", &out_img_color).unwrap();
         opencv::highgui::wait_key(0).unwrap();
 
-        let pose = pose_from_essential_mat(
+        // let pose = pose_from_essential_mat(
+        let pose = recover_pose::from_essential(
             &essential_mat, 
             &inliers_essential1, 
             &inliers_essential2, 
@@ -298,6 +306,8 @@ pub fn pose_from_essential_mat(
     println!("len: {}", points1.len());
     println!("inliers: {}", n);
 
+    recover_pose::from_essential(essential_mat, points1, points2, intrinsics)?;
+
     if (n as f64) / (points1.len() as f64) < 0.5 {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
@@ -316,6 +326,7 @@ pub fn pose_from_essential_mat(
         na::UnitQuaternion::from_rotation_matrix(&r), 
     );
     println!("step_pose: {}", pose.to_matrix());
+    println!("t.norm: {}", pose.translation.vector.norm());
 
     Ok(pose)
 }
@@ -446,8 +457,8 @@ mod test {
 
     #[test]
     fn test_bug_track() -> Result<(), Box<dyn std::error::Error>> {
-        let path1 = "/home/zhang/Downloads/MH_01_easy/mav0/cam0/data/1403636585013555456.png";
-        let path2 = "/home/zhang/Downloads/MH_01_easy/mav0/cam0/data/1403636585063555584.png";
+        let path1 = "/home/zhang/Downloads/MH_01_easy/mav0/cam0/data/1403636580263555584.png";
+        let path2 = "/home/zhang/Downloads/MH_01_easy/mav0/cam0/data/1403636580313555456.png";
         let data1 = super::super::load_data::EurocData {
             timestamp: std::time::Duration::default(),
             img_name: path1.into(),

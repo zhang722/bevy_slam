@@ -14,9 +14,11 @@ csv = "1.2.1"
 image = "0.24.6"
 imageproc = "0.23.0"
 opencv = "0.82.0"
-nalgebra = "0.32.2"
+nalgebra = {version = "0.32.2", features = ["serde-serialize"]}
 rosrust = "0.9.11"
 rosrust_msg = "0.1.7"
+serde = "1.0"
+serde_json = "1.0"
 
 [[bin]]
 name = "frontend" 
