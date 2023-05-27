@@ -200,8 +200,10 @@ impl Tracker {
         opencv::highgui::imshow("matches", &out_img_color).unwrap();
         opencv::highgui::wait_key(0).unwrap();
 
-        // let pose = pose_from_essential_mat(
-        let pose = recover_pose::from_essential(
+        // NOTE: type of mask is Vec<bool>, not opencv::core::Vector<u8>
+        // and type of points3d is Vec<na::Point3<f64>>, not opencv::core::Vector<core::Point3f>
+        // since we implement the function by ourselves
+        let (pose, mask, points3d) = recover_pose::from_essential(
             &essential_mat, 
             &inliers_essential1, 
             &inliers_essential2, 

@@ -21,7 +21,7 @@ pub fn from_essential(
     points1: &core::Vector<core::Point2f>,
     points2: &core::Vector<core::Point2f>,
     intrinsics: &camera::CameraIntrinsics,
-) -> Result<na::Isometry3<f64>, Box<dyn Error>> {
+) -> Result<(na::Isometry3<f64>, Vec<bool>, Vec<na::Point3<f64>>), Box<dyn Error>> {
     // use nalgebra to decompose essential matrix
     let e = cv_convert::cv_mat_to_na_mat(essential_mat)?;
     let svd = e.svd(true, true);
@@ -47,10 +47,10 @@ pub fn from_essential(
     );
     let t2 = -t1;
     
-    let (inliers1, points3d1) = check_cheirality(&r1, &t1, points1, points2, intrinsics)?;
-    let (inliers2, points3d2) = check_cheirality(&r1, &t2, points1, points2, intrinsics)?;
-    let (inliers3, points3d3) = check_cheirality(&r2, &t1, points1, points2, intrinsics)?;
-    let (inliers4, points3d4) = check_cheirality(&r2, &t2, points1, points2, intrinsics)?;
+    let (inliers1, mask1, points3d1) = check_cheirality(&r1, &t1, points1, points2, intrinsics)?;
+    let (inliers2, mask2, points3d2) = check_cheirality(&r1, &t2, points1, points2, intrinsics)?;
+    let (inliers3, mask3, points3d3) = check_cheirality(&r2, &t1, points1, points2, intrinsics)?;
+    let (inliers4, mask4, points3d4) = check_cheirality(&r2, &t2, points1, points2, intrinsics)?;
 
     // get max inliers
     let max_inliers = inliers1.max(inliers2).max(inliers3).max(inliers4);
@@ -58,14 +58,14 @@ pub fn from_essential(
         return Err("Not enough inliers".into());
     }
     // get corresponding r and t
-    let (r, t) = if max_inliers == inliers1 {
-        (r1, t1)
+    let (r, t, mask, points3d) = if max_inliers == inliers1 {
+        (r1, t1, mask1, points3d1)
     } else if max_inliers == inliers2 {
-        (r1, t2)
+        (r1, t2, mask2, points3d2)
     } else if max_inliers == inliers3 {
-        (r2, t1)
+        (r2, t1, mask3, points3d3)
     } else {
-        (r2, t2)
+        (r2, t2, mask4, points3d4)
     };
     // construct pose from r and t
     let pose = na::Isometry3::<f64>::from_parts(
@@ -73,7 +73,7 @@ pub fn from_essential(
         na::UnitQuaternion::<f64>::from_rotation_matrix(&na::Rotation3::<f64>::from_matrix_unchecked(r)),
     );
 
-    Ok(pose)
+    Ok((pose, mask, points3d))
 }
 
 pub fn check_cheirality(
@@ -82,8 +82,8 @@ pub fn check_cheirality(
     points1: &core::Vector<core::Point2f>,
     points2: &core::Vector<core::Point2f>,
     intrinsics: &camera::CameraIntrinsics,
-) -> Result<(usize, Vec<(na::Point3<f64>, na::Point3<f64>)>), Box<dyn Error>> {
-    let mut count1 = 0;    
+) -> Result<(usize, Vec<bool>, Vec<na::Point3<f64>>), Box<dyn Error>> {
+    let mut mask = Vec::new();
     let mut points3d = Vec::new();
     for (pt1, pt2) in points1.iter().zip(points2.iter()) {
         let x1 = cv_convert::cv_point2f_to_na_point2f(&pt1);
@@ -100,19 +100,13 @@ pub fn check_cheirality(
         let p1 = trangulate_point_linear(&x1, &x2, &p1, &p2)?;
         let p2 = r * p1 + t;
 
-        points3d.push((p1, p2));
-
-        if p1[2] < 0.0 || p1[2] > 50.0 {
-            continue;
-        }
-        if p2[2] < 0.0 || p2[2] > 50.0 {
-            continue;
-        }
-
-        count1 += 1;
+        points3d.push(p1);
+        mask.push(p1[2] > 0.0 && p2[2] > 0.0 && p1[2] < 50.0 && p2[2] < 50.0);
     }
 
-    Ok((count1, points3d))
+    let inlier = mask.iter().filter(|&n| *n).count();
+
+    Ok((inlier, mask, points3d))
 }
 
 pub fn trangulate_point_linear(
