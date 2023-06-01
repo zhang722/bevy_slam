@@ -15,6 +15,31 @@ pub struct MapPointReference {
     pub descriptor: Mat,
 }
 
+impl MapPointReference {
+    pub fn new(
+        id: KeyFrameId,
+        keypoint: &core::KeyPoint,
+        descriptor: &Mat,
+    ) -> Self {
+        MapPointReference {
+            id,
+            keypoint: keypoint.clone(),
+            descriptor: descriptor.clone(),
+        }
+    }
+    pub fn new_with_kf(
+        keyframe: &KeyFrame,
+        keypoint: &core::KeyPoint,
+        descriptor: &Mat,
+    ) -> Self {
+        MapPointReference::new(
+            keyframe.id,
+            keypoint,
+            descriptor,
+        )
+    }
+}
+
 pub struct MapPoint {
     pub id: MapPointId,
     pub position: na::Vector3<f64>,
@@ -47,6 +72,13 @@ impl MapPoint {
             desctriptor,
             references: Vec::new(),
         }
+    }
+
+    pub fn from_point(
+        position: na::Point3<f64>,
+        desctriptor: &Mat,
+    ) -> Self {
+        Self::new(na::Vector3::<f64>::new(position.x, position.y, position.z), desctriptor.clone())
     }
 
     pub fn add_reference(&mut self, reference: MapPointReference) {

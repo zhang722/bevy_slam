@@ -52,9 +52,12 @@ pub fn from_essential(
     let (inliers3, mask3, points3d3) = check_cheirality(&r2, &t1, points1, points2, intrinsics)?;
     let (inliers4, mask4, points3d4) = check_cheirality(&r2, &t2, points1, points2, intrinsics)?;
 
+    println!("inliers1: {}, inliers2: {}, inliers3: {}, inliers4: {}", inliers1, inliers2, inliers3, inliers4);
+
     // get max inliers
     let max_inliers = inliers1.max(inliers2).max(inliers3).max(inliers4);
     if (max_inliers as f64 / points1.len() as f64) < 0.5 {
+        println!("len: {}, max_inliers: {}", points1.len(), max_inliers);
         return Err("Not enough inliers".into());
     }
     // get corresponding r and t
@@ -100,8 +103,10 @@ pub fn check_cheirality(
         let p1 = trangulate_point_linear(&x1, &x2, &p1, &p2)?;
         let p2 = r * p1 + t;
 
-        points3d.push(p1);
-        mask.push(p1[2] > 0.0 && p2[2] > 0.0 && p1[2] < 50.0 && p2[2] < 50.0);
+        if p1[2] > 0.0 && p2[2] > 0.0 && p1[2] < 50.0 && p2[2] < 50.0 {
+            points3d.push(p1);
+            mask.push(true);
+        }
     }
 
     let inlier = mask.iter().filter(|&n| *n).count();

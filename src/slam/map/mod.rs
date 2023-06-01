@@ -2,6 +2,8 @@ pub mod keyframe;
 pub mod mappoint;
 
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::sync::atomic::{Ordering, AtomicUsize};
 
 use keyframe::*;
@@ -23,9 +25,11 @@ fn generate_id() -> usize{
     next_id
 }
 
+
+#[derive(Clone)]
 pub struct Map {
     pub keyframes: HashMap<KeyFrameId, KeyFrame>,
-    pub mappoints: HashMap<MapPointId, MapPoint>,
+    pub mappoints: HashMap<MapPointId, Rc<RefCell<MapPoint>>>,
 }
 
 impl Map {
@@ -40,11 +44,16 @@ impl Map {
         self.keyframes.insert(keyframe.id, keyframe);
     }
 
-    pub fn insert_mappoint(&mut self, mappoint: MapPoint) {
-        self.mappoints.insert(self.mappoint_id, mappoint);
+    pub fn insert_mappoint(&mut self, mappoint: Rc<RefCell<MapPoint>>) {
+        let id = mappoint.borrow().id;
+        self.mappoints.insert(id, mappoint);
     }
 
     pub fn next_id(&self) -> KeyFrameId {
         generate_id()
+    }
+
+    pub fn points(&self) -> Vec<Rc<RefCell<MapPoint>>> {
+        self.mappoints.values().cloned().collect()
     }
 }

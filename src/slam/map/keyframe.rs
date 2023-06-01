@@ -9,12 +9,14 @@ use opencv::{
 use nalgebra as na;
 
 use super::super::{
+    frame,
     camera,
 };
 use super::mappoint::*;
 
 pub type KeyFrameId = usize;
 
+#[derive(Clone)]
 pub struct KeyFrame {
     pub id: KeyFrameId,
     pub timestamp: time::Duration,
@@ -71,6 +73,20 @@ impl KeyFrame {
             observations: Vec::new(),
             connections: Vec::new(),
         }
+    }
+
+    pub fn from_frame(
+        frame: &frame::Frame,
+        intrinsics: &camera::CameraIntrinsics,
+    ) -> Self {
+        KeyFrame::new(
+            frame.timestamp.clone(),
+            frame.img.clone(),
+            frame.keypoints.clone(),
+            frame.descriptors.clone(),
+            intrinsics.clone(),
+            frame.pose.clone(),
+        )
     }
 
     pub fn add_observation(&mut self, observation: Rc<RefCell<MapPoint>>) {

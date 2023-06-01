@@ -1,5 +1,6 @@
 use nalgebra as na;
 
+#[derive(Clone, Copy)]
 pub struct CameraIntrinsics {
     pub fx: f64,
     pub fy: f64,
