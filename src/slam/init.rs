@@ -10,6 +10,7 @@ use opencv::{
     imgproc, prelude::MatTraitConst,
 };
 
+
 use super::{
     frame::{self, Frame},
     map::{ Map, mappoint::*, keyframe::* },
@@ -130,28 +131,31 @@ impl Init {
             &self.intrinsics)?;
         second_frame.pose = pose;
 
-        let matches = matches.into_iter().zip(mask.into_iter()).filter(|(_, status)| *status).map(|(m, _)| m.clone()).collect::<Vec<_>>();
+        let matches = matches.into_iter().zip(mask.iter()).filter(|(_, status)| **status).map(|(m, _)| m.clone()).collect::<Vec<_>>();
         let (idx1, idx2) = frame::matches2indices(&matches);
 
         let mut kf1 = KeyFrame::from_frame(&first_frame, &self.intrinsics);
         let mut kf2 = KeyFrame::from_frame(&second_frame, &self.intrinsics);
         let mut map = Map::new();
 
-        println!("p3d len: {}", points3d.len());
-        println!("idx1 len: {}", idx1.len());
-        println!("idx2 len: {}", idx2.len());
-
-        for (idx, point) in points3d.iter().enumerate() {
-            let kp1 = first_frame.keypoints.get(idx1[idx]).unwrap();
-            let kp2 = second_frame.keypoints.get(idx2[idx]).unwrap();
-            let des1 = first_frame.descriptors.row(idx1[idx] as i32).unwrap();
-            let des2 = second_frame.descriptors.row(idx2[idx] as i32).unwrap();
-            let mp = Rc::new(RefCell::new(MapPoint::from_point(*point, &des2)));
+        let mut idx_point3d = 0;
+        for (idx, mask) in mask.into_iter().enumerate() {
+            if !mask {
+                continue;
+            }
+            let point = points3d[idx_point3d];
+            let kp1 = first_frame.keypoints.get(idx1[idx_point3d]).unwrap();
+            let kp2 = second_frame.keypoints.get(idx2[idx_point3d]).unwrap();
+            let des1 = first_frame.descriptors.row(idx1[idx_point3d] as i32).unwrap();
+            let des2 = second_frame.descriptors.row(idx2[idx_point3d] as i32).unwrap();
+            let mp = Rc::new(RefCell::new(MapPoint::from_point(point, &des2)));
             kf1.add_observation(mp.clone());
             kf2.add_observation(mp.clone());
             mp.borrow_mut().add_reference(MapPointReference::new_with_kf(&kf1, &kp1, &des1));
             mp.borrow_mut().add_reference(MapPointReference::new_with_kf(&kf2, &kp2, &des2));
             map.insert_mappoint(mp.clone());
+
+            idx_point3d += 1;
         }
 
         map.insert_keyframe(kf1);

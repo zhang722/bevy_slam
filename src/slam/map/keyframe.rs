@@ -104,4 +104,8 @@ impl KeyFrame {
     pub fn add_connections(&mut self, ids: Vec<KeyFrameId>) {
         self.connections.extend(ids);
     }
+
+    pub fn observation(&self, id: MapPointId) -> Option<Rc<RefCell<MapPoint>>> {
+        self.observations.iter().find(|x| x.borrow().id == id).cloned()
+    }
 }

@@ -1,5 +1,8 @@
 use nalgebra as na;
 
+/*fx, fy, cx, cy, k1, k2, p1, p2*/
+type Vector8<T> = na::Matrix<T, na::U8, na::U1, na::ArrayStorage<T, 8, 1>>;
+
 #[derive(Clone, Copy)]
 pub struct CameraIntrinsics {
     pub fx: f64,
@@ -29,5 +32,9 @@ impl CameraIntrinsics {
         let x = (pt.x - self.cx) / self.fx;
         let y = (pt.y - self.cy) / self.fy;
         na::Point2::<f64>::new(x, y)
+    }
+
+    pub fn vector(&self) -> Vector8<f64> {
+        Vector8::<f64>::from_vec(vec![self.fx, self.fy, self.cx, self.cy, self.k1, self.k2, self.p1, self.p2])
     }
 }

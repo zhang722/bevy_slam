@@ -88,4 +88,8 @@ impl MapPoint {
     pub fn add_references(&mut self, references: Vec<MapPointReference>) {
         self.references.extend(references);
     }
+
+    pub fn reference(&self, id: KeyFrameId) -> Option<&MapPointReference> {
+        self.references.iter().find(|x| x.id == id)
+    }
 }

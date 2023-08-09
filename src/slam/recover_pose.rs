@@ -106,6 +106,8 @@ pub fn check_cheirality(
         if p1[2] > 0.0 && p2[2] > 0.0 && p1[2] < 50.0 && p2[2] < 50.0 {
             points3d.push(p1);
             mask.push(true);
+        } else {
+            mask.push(false);
         }
     }
 

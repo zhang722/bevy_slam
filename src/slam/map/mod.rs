@@ -56,4 +56,16 @@ impl Map {
     pub fn points(&self) -> Vec<Rc<RefCell<MapPoint>>> {
         self.mappoints.values().cloned().collect()
     }
+
+    pub fn keyframe(&self, id: KeyFrameId) -> Option<&KeyFrame> {
+        self.keyframes.get(&id)
+    }
+
+    pub fn keyframe_mut(&mut self, id: KeyFrameId) -> Option<&mut KeyFrame> {
+        self.keyframes.get_mut(&id)
+    }
+
+    pub fn mappoint(&self, id: MapPointId) -> Option<Rc<RefCell<MapPoint>>> {
+        self.mappoints.get(&id).cloned()
+    } 
 }
